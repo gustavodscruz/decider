@@ -78,6 +78,8 @@ class _HomeViewState extends State<HomeView> {
                 border: OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(8))),
                 helperText: "Enter a question"),
+                maxLines: null,
+                
           ),
         ),
         ElevatedButton(
