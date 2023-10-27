@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1042079948986",
+    "project_id": "decider-81156",
+    "storage_bucket": "decider-81156.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1042079948986:android:6060bc8c8c48b643122283",
+        "android_client_info": {
+          "package_name": "com.gustavodscruz.decider"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxWt4wmQnFWJzdTqywdYoVAxNT4silYok"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
