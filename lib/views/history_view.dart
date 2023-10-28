@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:decider/models/Questions.dart';
+import 'package:decider/models/Question.dart';
 import 'package:decider/services/auth_service.dart';
+import 'package:decider/views/helpers/question_card.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 
 class HistoryView extends StatefulWidget {
   const HistoryView({super.key});
@@ -32,14 +35,14 @@ class _HistoryViewState extends State<HistoryView> {
           child: ListView.builder(
         itemCount: _historyList.length,
         itemBuilder: (context, index) {
-          return Text("$index");
+          return QuestionCard(_historyList[index] as Question);
         },
       )),
     );
   }
 
   Future getUsersQuestionsList() async {
-    final uid = AuthService().currentUser?.uid;
+    final uid = context.read<AuthService>().currentUser?.uid;
     var data = await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)

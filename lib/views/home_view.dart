@@ -2,25 +2,32 @@ import 'dart:math';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:decider/extensions/string_extension.dart';
-import 'package:decider/models/Questions.dart';
+import 'package:decider/models/Account.dart';
+import 'package:decider/models/Question.dart';
 import 'package:decider/services/auth_service.dart';
 import 'package:decider/views/history_view.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
 
 class HomeView extends StatefulWidget {
-  const HomeView({super.key});
-
+  final Account account;
+  HomeView({required this.account});
   @override
   State<HomeView> createState() => _HomeViewState();
 }
+
+enum AppStatus{ready, waiting}
 
 class _HomeViewState extends State<HomeView> {
   final TextEditingController _questionController = TextEditingController();
   String _answer = "";
   bool _askBtnActive = false;
   final Question _question = Question();
+  AppStatus? _appStatus;
   @override
   Widget build(BuildContext context) {
+    _setAppStatus();
     return GestureDetector(
       //mudança de foco na aplicação, aplicar para outros projetos!
       onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
@@ -55,9 +62,9 @@ class _HomeViewState extends State<HomeView> {
             child: Padding(
               padding: const EdgeInsets.all(8.0),
               child: Column(children: [
-                const Padding(
+                Padding(
                   padding: EdgeInsets.all(8.0),
-                  child: Text("Decisions Left: ##"),
+                  child: Text("Decisions Left: ${widget.account.bank} "),
                 ),
                 const Spacer(),
                 _buildQuestionsForm(),
@@ -68,7 +75,7 @@ class _HomeViewState extends State<HomeView> {
                   padding: EdgeInsets.all(8.0),
                   child: Text("Account Type: Free"),
                 ),
-                Text("${AuthService().currentUser?.uid}")
+                Text("${context.read<AuthService>().currentUser?.uid}")
               ]),
             ),
           ),
@@ -78,7 +85,8 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildQuestionsForm() {
-    return Column(
+    if(_appStatus == AppStatus.ready){
+      return Column(
       children: <Widget>[
         Text(
           "Should I...",
@@ -108,7 +116,11 @@ class _HomeViewState extends State<HomeView> {
         _questionAndAnswer()
       ],
     );
-  }
+  
+    }else{
+      return _questionAndAnswer();
+    }
+    }
 
   String _getAnswer() {
     var answerOptions = ['Yes', 'No', 'Definitily', 'not right now'];
@@ -137,6 +149,19 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
+  void _setAppStatus(){
+    if(widget.account.bank > 0){
+        setState(() {
+          _appStatus = AppStatus.ready;
+        });
+    }
+    else{
+      setState(() {
+        _appStatus = AppStatus.waiting;
+      });
+    }
+  }
+
   void _answerQuestion() async {
     setState(() {
       _answer = _getAnswer();
@@ -145,10 +170,18 @@ class _HomeViewState extends State<HomeView> {
     _question.answer = _answer;
     _question.created = DateTime.now();
 
+    widget.account.bank = widget.account.bank -= 1;
+    widget.account.nextFreeQuestion = DateTime.now().add(Duration(seconds: 5));
+
     await FirebaseFirestore.instance
         .collection('users')
-        .doc(AuthService().currentUser?.uid)
+        .doc(context.read<AuthService>().currentUser?.uid)
         .collection('questions')
         .add(_question.toJson());
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(widget.account.uid)
+        .update(widget.account.toJson());
   }
 }

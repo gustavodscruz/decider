@@ -1,10 +1,14 @@
 import 'package:decider/extensions/string_extension.dart';
-import 'package:decider/models/Questions.dart';
+import 'package:decider/models/Question.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class QuestionCard extends StatelessWidget {
+
   final Question _question;
+
   QuestionCard(this._question);
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -24,8 +28,8 @@ class QuestionCard extends StatelessWidget {
               Row(
                 children: [
                   Text(_question.answer!.capitalize(), style: Theme.of(context).textTheme.headlineMedium,),
-                  Spacer(),
-                  // Text("${DateFormat('MM/dd/yyyy').format(_question.created!).toString()}")
+                  const Spacer(),
+                  Text(DateFormat('MM/dd/yyyy').format(_question.created!).toString())
                 ],
               )
             ],
