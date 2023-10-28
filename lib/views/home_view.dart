@@ -7,8 +7,10 @@ import 'package:decider/models/Question.dart';
 import 'package:decider/services/auth_service.dart';
 import 'package:decider/views/history_view.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-
+import 'package:timer_count_down/timer_controller.dart';
+import 'package:timer_count_down/timer_count_down.dart';
 
 class HomeView extends StatefulWidget {
   final Account account;
@@ -17,7 +19,7 @@ class HomeView extends StatefulWidget {
   State<HomeView> createState() => _HomeViewState();
 }
 
-enum AppStatus{ready, waiting}
+enum AppStatus { ready, waiting }
 
 class _HomeViewState extends State<HomeView> {
   final TextEditingController _questionController = TextEditingController();
@@ -25,6 +27,19 @@ class _HomeViewState extends State<HomeView> {
   bool _askBtnActive = false;
   final Question _question = Question();
   AppStatus? _appStatus;
+  int _timeTillNextFree = 0;
+  final CountdownController _countDownController = CountdownController();
+
+  @override
+  void initState() {
+    super.initState();
+    _timeTillNextFree = widget.account.nextFreeQuestion
+            ?.difference((DateTime.now()))
+            .inSeconds ??
+        0;
+    _giveFreeDecision(widget.account.bank, _timeTillNextFree);
+  }
+
   @override
   Widget build(BuildContext context) {
     _setAppStatus();
@@ -85,42 +100,41 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Widget _buildQuestionsForm() {
-    if(_appStatus == AppStatus.ready){
+    if (_appStatus == AppStatus.ready) {
       return Column(
-      children: <Widget>[
-        Text(
-          "Should I...",
-          style: Theme.of(context).textTheme.headlineLarge,
-        ),
-        Padding(
-          padding: EdgeInsets.fromLTRB(30, 0, 30, 10),
-          child: TextField(
-            decoration: const InputDecoration(
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.all(Radius.circular(8))),
-                helperText: "Enter a question"),
-            maxLines: null,
-            keyboardType: TextInputType.multiline,
-            controller: _questionController,
-            textInputAction: TextInputAction.done,
-            onChanged: (value) {
-              setState(() {
-                _askBtnActive = value.length >= 3 ? true : false;
-              });
-            },
+        children: <Widget>[
+          Text(
+            "Should I...",
+            style: Theme.of(context).textTheme.headlineLarge,
           ),
-        ),
-        ElevatedButton(
-            onPressed: _askBtnActive == true ? _answerQuestion : null,
-            child: const Text("Ask")),
-        _questionAndAnswer()
-      ],
-    );
-  
-    }else{
+          Padding(
+            padding: EdgeInsets.fromLTRB(30, 0, 30, 10),
+            child: TextField(
+              decoration: const InputDecoration(
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.all(Radius.circular(8))),
+                  helperText: "Enter a question"),
+              maxLines: null,
+              keyboardType: TextInputType.multiline,
+              controller: _questionController,
+              textInputAction: TextInputAction.done,
+              onChanged: (value) {
+                setState(() {
+                  _askBtnActive = value.length >= 3 ? true : false;
+                });
+              },
+            ),
+          ),
+          ElevatedButton(
+              onPressed: _askBtnActive == true ? _answerQuestion : null,
+              child: const Text("Ask")),
+          _questionAndAnswer()
+        ],
+      );
+    } else {
       return _questionAndAnswer();
     }
-    }
+  }
 
   String _getAnswer() {
     var answerOptions = ['Yes', 'No', 'Definitily', 'not right now'];
@@ -149,16 +163,51 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  void _setAppStatus(){
-    if(widget.account.bank > 0){
-        setState(() {
-          _appStatus = AppStatus.ready;
-        });
+  Widget _nextFreeCountdown() {
+    if (_appStatus == AppStatus.waiting) {
+      _countDownController.start();
+      var f = NumberFormat("00", "en_US");
+      return Column(
+        children: [
+          const Text("You will get one free decision in"),
+          Countdown(
+            controller: _countDownController,
+            seconds: _timeTillNextFree,
+            build: (BuildContext context, double time) => Text(
+                "${f.format(time ~/ 3600)} : ${f.format(time % 3600 ~/ 60)} : ${f.format(time % 60)}"),
+            interval: const Duration(seconds: 1),
+            onFinished: () {
+              setState(() {
+                _timeTillNextFree = 0;
+                _appStatus = AppStatus.ready;
+              });
+            },
+          )
+        ],
+      );
+    } else {
+      return Container();
     }
-    else{
+  }
+
+  void _setAppStatus() {
+    if (widget.account.bank > 0) {
+      setState(() {
+        _appStatus = AppStatus.ready;
+      });
+    } else {
       setState(() {
         _appStatus = AppStatus.waiting;
       });
+    }
+  }
+
+  void _giveFreeDecision(currentBank, timeTillNextFree) {
+    if (currentBank <= 0 && timeTillNextFree <= 0) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.account.uid)
+          .update({'bank': 1});
     }
   }
 
@@ -171,7 +220,16 @@ class _HomeViewState extends State<HomeView> {
     _question.created = DateTime.now();
 
     widget.account.bank = widget.account.bank -= 1;
-    widget.account.nextFreeQuestion = DateTime.now().add(Duration(seconds: 5));
+    widget.account.nextFreeQuestion = DateTime.now().add(Duration(seconds: 20));
+
+    setState(() {
+      _timeTillNextFree = widget.account.nextFreeQuestion?.difference((DateTime.now()))
+            .inSeconds ??
+        0;
+        if(widget.account.bank == 0){
+          _appStatus = AppStatus.waiting;
+        }
+    });
 
     await FirebaseFirestore.instance
         .collection('users')
